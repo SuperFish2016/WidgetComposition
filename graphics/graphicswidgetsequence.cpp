@@ -40,6 +40,11 @@ void GraphicsWidgetSequence::paint(QPainter *painter, const QStyleOptionGraphics
     }
 }
 
+GraphicsWidgetSegment* GraphicsWidgetSequence::getSegment() const
+{
+    return qobject_cast<GraphicsWidgetSegment*>(parentObject());
+}
+
 void GraphicsWidgetSequence::createLayout()
 {
     layout_ = new QGraphicsLinearLayout(Qt::Horizontal);

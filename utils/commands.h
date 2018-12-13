@@ -1,6 +1,7 @@
 #ifndef COMMANDS_H
 #define COMMANDS_H
 #include "commands.h"
+#include "imf/imfcommon.h"
 #include <QUndoCommand>
 #include <QPointF>
 class GraphicsWidgetSequence;
@@ -9,10 +10,47 @@ class GraphicsWidgetMarkerIndicator;
 class AbstractWidgetTrackDetails;
 class WidgetComposition;
 class AbstractGraphicsWidgetResources;
+
+
+class SetEntryPointCommand : public QUndoCommand {
+
+public:
+    SetEntryPointCommand(AbstractGraphicsWidgetResources *pResource, const Duration &rOldEntryPoint,
+                         const Duration &rNewEntryPoint, QUndoCommand *pParent = NULL);
+    virtual ~SetEntryPointCommand() {}
+    virtual void undo();
+    //! Called once when pushed on Undo Stack.
+    virtual void redo();
+
+private:
+    Q_DISABLE_COPY(SetEntryPointCommand)
+    AbstractGraphicsWidgetResources *mpResource;
+    Duration mOldEntryPoint;
+    Duration mNewEntryPoint;
+};
+
+
+class SetSourceDurationCommand : public QUndoCommand {
+
+public:
+    SetSourceDurationCommand(AbstractGraphicsWidgetResources *pResource, const Duration &rOldSourceDuration,
+                             const Duration &rNewSourceDuration, QUndoCommand *pParent = NULL);
+    virtual ~SetSourceDurationCommand() {}
+    virtual void undo();
+    //! Called once when pushed on Undo Stack.
+    virtual void redo();
+
+private:
+    Q_DISABLE_COPY(SetSourceDurationCommand)
+    AbstractGraphicsWidgetResources *mpResource;
+    Duration mOldSourceDuration;
+    Duration mNewSourceDuration;
+};
+
 class AddSequenceCommand : public QUndoCommand
 {
 public:
-    AddSequenceCommand(GraphicsWidgetSequence* sequence, int index, GraphicsWidgetSegment* segment, QUndoCommand *parent = nullptr);
+    AddSequenceCommand(GraphicsWidgetSequence* sequence, int index, GraphicsWidgetSegment* segment, QUndoCommand *parent = NULL);
     ~AddSequenceCommand(){}
     virtual void undo();
     virtual void redo();
@@ -28,7 +66,7 @@ private:
 class AddTrackDetailsCommand : public QUndoCommand {
 
 public:
-    AddTrackDetailsCommand(AbstractWidgetTrackDetails *track_details, WidgetComposition *widget_compostion, int trackIndex, QUndoCommand *parent = nullptr);
+    AddTrackDetailsCommand(AbstractWidgetTrackDetails *track_details, WidgetComposition *widget_compostion, int trackIndex, QUndoCommand *parent = NULL);
     virtual ~AddTrackDetailsCommand();
     virtual void undo();
     //! Called once when pushed on Undo Stack.
@@ -60,7 +98,7 @@ private:
 class DeleteMarkerCommand : public QUndoCommand
 {
 public:
-    DeleteMarkerCommand(GraphicsWidgetMarkerIndicator* marker, QUndoCommand* parent = nullptr);
+    DeleteMarkerCommand(GraphicsWidgetMarkerIndicator* marker, QUndoCommand* parent = NULL);
     ~DeleteMarkerCommand();
     virtual void undo();
     virtual void redo();

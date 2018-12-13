@@ -6,23 +6,24 @@
 class GraphicsWidgetComposition;
 class GraphicsWidgetTimeline;
 class GraphicsObjectVerticalIndicator;
-class AbstractGraphicsWidgetResource;
+class AbstractGraphicsWidgetResources;
 class QUndoCommand;
 typedef unsigned int GridPosition;
 typedef unsigned int SequenceTypes;
-
+class AbstractGridExtension;
 // Scene的基类
 class GraphicsSceneBase : public QGraphicsScene
 {
     Q_OBJECT
 public:
-    struct GridInfo
-    {
-      bool IsHorizontalSnap;
-      bool IsVerticalSnap;
-      QPointF   SnapPos;
-      qreal     HeightAdvice;
-      QColor    ColorAdvice;
+    struct GridInfo {
+        bool IsHoizontalSnap;
+        bool IsVerticalSnap;
+        QPointF SnapPos;
+        QColor ColorAdvice;
+        qreal HeightAdvice;
+        AbstractGridExtension *HorizontalOrigin;
+        AbstractGridExtension *VerticalOrigin;
     };
     GraphicsSceneBase(const EditRate& CplEditRate = EditRate::EditRate24, QObject* parent = nullptr);
     virtual ~GraphicsSceneBase(){}
@@ -42,6 +43,8 @@ private slots:
     void slot_scene_rect_changed(const QRectF& rect){GraphicsSceneResizeEvent(rect);}
 protected:
     virtual void GraphicsSceneResizeEvent(const QRectF& r){}
+    virtual QList<AbstractGridExtension*> AddPermanentSnapItems() const {
+                                return QList<AbstractGridExtension*>(); }
 
 private:
     Q_DISABLE_COPY(GraphicsSceneBase)
@@ -58,16 +61,22 @@ public:
     GraphicsSceneComposition();
     virtual ~GraphicsSceneComposition(){}
 
+    void delegateCommand(QUndoCommand *command) { emit pushCommand(command); }
     GraphicsWidgetComposition* composition() const { return composition_graphics_; }
     GraphicsObjectVerticalIndicator* frameIndicator() const{return current_frame_indicator_;}
 private slots:
     void slot_composition_geometry_changed();
+signals:
+    void pushCommand(QUndoCommand *command);
+protected:
+    virtual QList<AbstractGridExtension*> AddPermanentSnapItems() const;
+
 private:
     Q_DISABLE_COPY(GraphicsSceneComposition)
     GraphicsWidgetComposition*          composition_graphics_;
     GraphicsObjectVerticalIndicator*    current_frame_indicator_;
     GraphicsObjectVerticalIndicator*    snap_indicator_;
-    AbstractGraphicsWidgetResource*     ghost_resource_;
+    AbstractGraphicsWidgetResources*     ghost_resource_;
 };
 
 // Timeline 刻度尺的 scene， 该控件下面就是composition 的scene

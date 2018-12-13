@@ -65,18 +65,33 @@ public:
     QColor color() const{return color_;}
     void   setColor(const QColor& color){color_ = color; update();}
 
-    qint32 repeatCount() const{return 1;}
+    QString  annotation() const{return asset_->annotation_;}
+    qint32   repeatCount() const{return 1;}
     Duration entryPoint() const{return 0;}
-    Duration sourceDuration() const{return 1000;}
+    Duration sourceDuration() const{ return asset_->source_duration_; }
     Duration intrinsicDuration() const{return 1000;}
     EditRate editRate() const{return EditRate::EditRate24;}
+
+    void setAnnotation(const QString& annotation){asset_->annotation_ = (annotation);}
+    void setEntryPoint(const Duration& d);
+    void setSourceDuration(const Duration& d);
 
     //! Transforms a local Timecode to an absolute Cpl timecode.
     Timecode MapToCplTimeline(const Timecode &rLocalTimecode) const;
     //! Transforms a local Duration to Cpl Duration (replaces Resource Edit Rate with Cpl Edit Rate).
     Duration MapToCplTimeline(const Duration &rLocalDuration) const;
     virtual void trimHandleInUse(eTrimHandlePos pos, bool active);
+    virtual void TrimHandleMoved(eTrimHandlePos pos) {}
+
     void trimResource(qint32 pos, qint32 lastPos, eTrimHandlePos epos);
+
+    void maximizeZValue();
+    void restoreZValue();
+    GraphicsWidgetSequence* getSequence() const;
+    // QSharedPointer<AssetMxfTrack> asset_mxf_;
+signals:
+    void sourceDurationChanged(const Duration& old_duration, const Duration& new_duration);
+    void entryPointChanged(const Duration& old_entry_point, const Duration& new_entry_point);
 protected:
 
     virtual void resizeEvent(QGraphicsSceneResizeEvent* e);
@@ -85,6 +100,10 @@ protected:
     virtual void hoverEnterEvent(QGraphicsSceneHoverEvent* e);
     virtual void hoverLeaveEvent(QGraphicsSceneHoverEvent* e);
     virtual bool extendGrid(QPointF &point, eGridPosition which) const;
+    virtual double samplesPerFrame(const EditRate& compositionEditRate) const{return 1;}
+    virtual void CPLEditRateChanged(){updateGeometry();}
+
+    AssetMxfTrack* asset_;
     QSharedPointer<AssetMxfTrack> mAssset;
 private:
     Q_DISABLE_COPY(AbstractGraphicsWidgetResources)
@@ -129,6 +148,7 @@ public:
 protected:
     virtual void trimHandleInUse(eTrimHandlePos pos, bool active);
     virtual void cplEditRateChanged(){}
+    virtual double samplesPerFrame(const EditRate& compositionEditRate)const{return 1;}
 private slots:
     void slot_entry_point_changed();
     void slot_source_duration_changed();
@@ -145,6 +165,7 @@ class GraphicsWidgetAudioResource : public GraphicsWidgetFileResource
 public:
     GraphicsWidgetAudioResource(GraphicsWidgetSequence* parent);
     virtual ~GraphicsWidgetAudioResource(){}
+    virtual double samplesPerFrame(const EditRate& compositionEditRate)const{return 1;}
 private:
     Q_DISABLE_COPY(GraphicsWidgetAudioResource)
 };
@@ -154,6 +175,7 @@ class GraphicsWidgetTimedTextResource : public GraphicsWidgetFileResource
 public:
     GraphicsWidgetTimedTextResource(GraphicsWidgetSequence* parent);
     virtual ~GraphicsWidgetTimedTextResource(){}
+    virtual double samplesPerFrame(const EditRate& compositionEditRate)const{return 1;}
 private:
     Q_DISABLE_COPY(GraphicsWidgetTimedTextResource)
 };

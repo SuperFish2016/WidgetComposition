@@ -146,7 +146,7 @@ void WidgetComposition::createStyle() {
 void WidgetComposition::buildUI()
 {
 
-    GraphicsWidgetSegmentIndicator *p_graphics_segment_indicator = new GraphicsWidgetSegmentIndicator(timeline_graphics_);
+    GraphicsWidgetSegmentIndicator *p_graphics_segment_indicator = new GraphicsWidgetSegmentIndicator(timeline_);
     composition_graphics_ = composition_scene_->composition();
     slot_add_track_request(MainImageSequence);
     slot_add_track_request(MainAudioSequence);
@@ -162,13 +162,24 @@ bool WidgetComposition::eventFilter(QObject *watched, QEvent *event)
         if(watched == timeline_view_->viewport())
         {
             QWheelEvent* e = static_cast<QWheelEvent*>(event);
-            qreal factor = pow((double)2, e->delta() / 240.0);
-            timeline_view_->scaleView(factor);
-            composition_view_->scaleView(factor);
-            timeline_view_->horizontalScrollBar()->setValue(composition_view_->horizontalScrollBar()->value());
+            qreal factor = pow(1.2, e->delta() / 240.0);
+            eScaleStatus scaleResut = composition_view_->scaleView(factor);
+            if( ScaleNormal == scaleResut)
+            {
+                timeline_view_->scaleView(factor);
+                timeline_view_->horizontalScrollBar()->setValue(composition_view_->horizontalScrollBar()->value());
+            }
+            else
+            {
+                timeline_view_->setMatrix(composition_view_->matrix());
+                if(scaleResut == ScaleMin)
+                {
+                    composition_view_->horizontalScrollBar()->setValue(0);
+                }
+            }
             return true;
         } // sync track details and tracks
-        else if(watched == composition_view_->viewport() || watched == track_details_area->viewport())
+        else if(watched != composition_view_->viewport() || watched == track_details_area->viewport())
         {
             QWheelEvent *wheel_event = dynamic_cast<QWheelEvent*>(event);
             int delta = -wheel_event->delta();
@@ -232,7 +243,7 @@ void WidgetComposition::slot_add_segment_request()
     QUndoCommand *root = new QUndoCommand(nullptr);
     QUuid uuid(QUuid::createUuid());
     GraphicsWidgetSegment *new_segment = new GraphicsWidgetSegment(composition_graphics_, uuid);
-    GraphicsWidgetSegmentIndicator *segment_indicator = new GraphicsWidgetSegmentIndicator(timeline_graphics_);
+    GraphicsWidgetSegmentIndicator *segment_indicator = new GraphicsWidgetSegmentIndicator(timeline_);
 
     for(int i = 0; i < track_details_count(); i++) {
         AbstractWidgetTrackDetails *p = track_details(i);
@@ -243,7 +254,7 @@ void WidgetComposition::slot_add_segment_request()
    // qint64 total_duration = this->GetTotalDuration();
   //  total_duration = (total_duration >= 600 ? total_duration : 600);
     new_segment->setDuration(5000 / 5);  // Set duration of new segment to 20% of the total CPL duration	mpCompositionGraphicsWidget->layout()->activate();
-    timeline_graphics_->layout()->activate();
+    timeline_->layout()->activate();
 }
 
 void WidgetComposition::add_track_details(AbstractWidgetTrackDetails *track_details, int index)

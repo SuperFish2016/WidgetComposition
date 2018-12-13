@@ -12,7 +12,8 @@ GraphicsWidgetTimeline::GraphicsWidgetTimeline(QGraphicsItem *parent)
     creatLayout();
 }
 
-void GraphicsWidgetTimeline::resizeEvent(QGraphicsSceneEvent *e)
+// C.T  resizeEvent is QGraphicsSceneResizeEvent
+void GraphicsWidgetTimeline::resizeEvent(QGraphicsSceneResizeEvent *e)
 {
     QGraphicsScene* ptr_scene = scene();
     if(ptr_scene)

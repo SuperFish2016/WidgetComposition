@@ -43,35 +43,7 @@ void GraphicsWidgetSegment::createLayout()
 
 QSizeF GraphicsWidgetSegment::sizeHint(Qt::SizeHint which, const QSizeF &constraint) const
 {
-    QSizeF size;
-    if(constraint.isValid() == false) {
-        switch(which) {
-            case Qt::MinimumSize:
-                size = QSizeF(std::numeric_limits<qint32>::max(), QGraphicsWidget::sizeHint(which, constraint).height());
-                break;
-            case Qt::PreferredSize:
-                size = QSizeF(std::numeric_limits<qint32>::max(), QGraphicsWidget::sizeHint(which, constraint).height());
-                break;
-            case Qt::MaximumSize:
-                size = QSizeF(std::numeric_limits<qint32>::max(), QGraphicsWidget::sizeHint(which, constraint).height());
-                break;
-            case Qt::MinimumDescent:
-                size = QSizeF(-1, -1);
-                break;
-            case Qt::NSizeHints:
-                size = QSizeF(-1, -1);
-                break;
-            default:
-                size = QSizeF(-1, -1);
-                break;
-        }
-    }
-    else {
-        qWarning() << "sizeHint() is constraint.";
-        size = constraint;
-    }
-    return size;
-    //return QSizeF(12000, QGraphicsWidget::sizeHint(which, constraint).height());
+    return QSizeF(1300 , QGraphicsWidget::sizeHint(which, constraint).height());
 }
 
 GraphicsWidgetSequence* GraphicsWidgetSegment::sequence(int index) const
@@ -135,3 +107,15 @@ void GraphicsWidgetSegment::deleteSequence(GraphicsWidgetSequence *sequence)
         }
     }
 }
+
+bool GraphicsWidgetSegmentIndicator::extendGrid(QPointF &rPoint, eGridPosition which) const {
+
+        if(which == Vertical) {
+            QPointF ret(mapFromScene(rPoint));
+            ret.setX(boundingRect().left());
+            rPoint = mapToScene(ret);
+            return true;
+        }
+        return false;
+}
+

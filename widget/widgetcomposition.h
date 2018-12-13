@@ -55,7 +55,6 @@ private:
     GraphicsViewScalable*     composition_view_; // VIEW
     GraphicsSceneComposition* composition_scene_; // SCENE
     GraphicsWidgetComposition* composition_graphics_;// ITEM
-    GraphicsWidgetTimeline*    timeline_graphics_;//ITEM
 
     // place track details widget
     QScrollArea* track_details_area;

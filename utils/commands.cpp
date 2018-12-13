@@ -4,6 +4,38 @@
 #include "graphics/graphicswidgetresources.h"
 #include "widget/widgettrackdetails.h"
 #include "widget/widgetcomposition.h"
+
+
+SetEntryPointCommand::SetEntryPointCommand(AbstractGraphicsWidgetResources *pResource, const Duration &rOldEntryPoint, const Duration &rNewEntryPoint, QUndoCommand *pParent /*= NULL*/) :
+QUndoCommand(pParent), mpResource(pResource), mOldEntryPoint(rOldEntryPoint), mNewEntryPoint(rNewEntryPoint) {
+
+}
+
+void SetEntryPointCommand::undo() {
+
+    mpResource->setEntryPoint(mOldEntryPoint);
+}
+
+void SetEntryPointCommand::redo() {
+
+    mpResource->setEntryPoint(mNewEntryPoint);
+}
+
+SetSourceDurationCommand::SetSourceDurationCommand(AbstractGraphicsWidgetResources *pResource, const Duration &rOldSourceDuration, const Duration &rNewSourceDuration, QUndoCommand *pParent /*= NULL*/) :
+QUndoCommand(pParent), mpResource(pResource), mOldSourceDuration(rOldSourceDuration), mNewSourceDuration(rNewSourceDuration) {
+
+}
+
+void SetSourceDurationCommand::undo() {
+
+    mpResource->setSourceDuration(mOldSourceDuration);
+}
+
+void SetSourceDurationCommand::redo() {
+
+    mpResource->setSourceDuration(mNewSourceDuration);
+}
+
 AddSequenceCommand::AddSequenceCommand(GraphicsWidgetSequence *sequence, int index, GraphicsWidgetSegment *segment, QUndoCommand* parent)
     :QUndoCommand(parent), sequence_(sequence), segment_(segment), old_sequence_index_(index)
 {
@@ -16,7 +48,7 @@ void AddSequenceCommand::undo()
     {
         sequence_->hide();
         segment_->deleteSequence(sequence_);
-        sequence_->setParentItem(nullptr);
+        sequence_->setParentItem(NULL);
         ;
     }
 }
@@ -77,7 +109,7 @@ void AddResourceCommand::undo()
     if(old_resource_index_ >= 0) {
         sequence_->deleteResource(resource_);
         resource_->hide();
-        resource_->setParentItem(nullptr); // Gets top level item. Deleted by scene.
+        resource_->setParentItem(NULL); // Gets top level item. Deleted by scene.
         is_redone = false;
         sequence_->layout()->activate();
     }
@@ -111,7 +143,7 @@ void DeleteMarkerCommand::redo()
 {
     pos_ = marker_->pos();
     marker_->hide();
-    marker_->setParentItem(nullptr);
+    marker_->setParentItem(NULL);
     is_redone = true;
 }
 

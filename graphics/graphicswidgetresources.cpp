@@ -1,5 +1,9 @@
 #include "graphicswidgetresources.h"
 #include "graphicswidgetsequence.h"
+#include "graphicswidgetsegment.h"
+#include "graphicsscene.h"
+#include "utils/commands.h"
+#include <math.h>
 #include <QGraphicsSceneMouseEvent>
 #include <QStyleOptionGraphicsItem>
 TrimHandle::TrimHandle(AbstractGraphicsWidgetResources *parent, eTrimHandlePos pos)
@@ -71,7 +75,9 @@ void TrimHandle::mousePressEvent(QGraphicsSceneMouseEvent *event)
 
 void TrimHandle::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 {
-    if(!event->button() & Qt::LeftButton)
+    // CT notic: event->button() always retur NoButton in MoveEvent.
+    // We should use event->buttons() & Qt::leftButton
+    if(!(event->buttons() & Qt::LeftButton))
         return;
     AbstractGraphicsWidgetResources* source_widget = qobject_cast<AbstractGraphicsWidgetResources*>(parentWidget());
     if(source_widget)
@@ -188,10 +194,16 @@ AbstractGraphicsWidgetResources::AbstractGraphicsWidgetResources(GraphicsWidgetS
     right_trim_handle_ = new TrimHandle(this, Right);
     duration_indicator_ = new DurationIndicator(this);
     vertical_indicator_ = new GraphicsObjectVerticalIndicator(1, 0, QColor(CPL_COLOR_DEFAULT_SNAP_INDICATOR), this);
+    vertical_indicator_->hideHead();
     left_trim_handle_->hide();
     right_trim_handle_->hide();
     duration_indicator_->hide();
     vertical_indicator_->hide();
+    old_source_duration_ = 1000; // fixed value for test.
+    asset_ = new AssetMxfTrack;
+    asset_->source_duration_ = 1000;
+    asset_->intrinsic_duration_ = 1000;
+
     setAcceptHoverEvents(true);
     setFlags(QGraphicsItem::ItemUsesExtendedStyleOption | QGraphicsItem::ItemIsSelectable);
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
@@ -276,6 +288,49 @@ void AbstractGraphicsWidgetResources::paint(QPainter *painter, const QStyleOptio
     painter->restore();
 }
 
+void AbstractGraphicsWidgetResources::setEntryPoint(const Duration &entry_point)
+{
+    double samples_per_frame = samplesPerFrame(GetCplEditRate());
+    Duration new_entry_point(entry_point);
+    Duration current_source_duration(sourceDuration());
+    Duration current_entry_point(entryPoint());
+    if(entry_point < 0)
+        new_entry_point = 0;
+    else if(entry_point > current_entry_point + current_source_duration - samples_per_frame)
+        new_entry_point = entryPoint() + current_source_duration - samples_per_frame;
+    if(current_entry_point != new_entry_point)
+        emit entryPointChanged(current_entry_point, new_entry_point);
+    if(current_source_duration != sourceDuration())
+        emit sourceDurationChanged(current_source_duration, sourceDuration());
+    updateGeometry();
+    QRectF rect = boundingRect();
+    rect.setWidth(intrinsicDuration().GetCount() / samples_per_frame);
+    rect.moveLeft(-(entryPoint().GetCount() / samples_per_frame));
+    duration_indicator_->setRect(rect);
+}
+
+void AbstractGraphicsWidgetResources::setSourceDuration(const Duration &d)
+{
+    double samples_per_frame = samplesPerFrame(GetCplEditRate());
+    int rounded_samples_factor = (int)(samples_per_frame + 0.5);
+    Duration new_source_duration(d);
+    Duration current_source_duration(sourceDuration());
+    if(new_source_duration < rounded_samples_factor)
+        new_source_duration = rounded_samples_factor;
+    else if(new_source_duration > intrinsicDuration() - entryPoint())
+        new_source_duration = intrinsicDuration() - entryPoint();
+    new_source_duration = (new_source_duration.GetCount() / rounded_samples_factor) * rounded_samples_factor;
+
+    if(new_source_duration != current_source_duration)
+        emit sourceDurationChanged(current_source_duration, new_source_duration);
+    asset_->source_duration_ = new_source_duration.GetCount();
+    updateGeometry();// notify layout resize the widget after sizeHint changed.
+    QRectF rect = boundingRect();
+    rect.setWidth(intrinsicDuration().GetCount() / samples_per_frame);
+    rect.moveLeft(-(entryPoint().GetCount() / samples_per_frame));
+    duration_indicator_->setRect(rect);
+}
+
 void AbstractGraphicsWidgetResources::resizeEvent(QGraphicsSceneResizeEvent *e)
 {
     left_trim_handle_->setHeight(e->newSize().height());
@@ -297,7 +352,8 @@ void AbstractGraphicsWidgetResources::hideEvent(QHideEvent *e)
 QSizeF AbstractGraphicsWidgetResources::sizeHint(Qt::SizeHint which, const QSizeF &constraint) const
 {
     QSizeF size;
-    qint64 duration_to_width = repeatCount() * (qint64)(sourceDuration().GetCount() / 1); // need fixed.
+    EditRate ed = GetCplEditRate();
+    qint64 duration_to_width = repeatCount() * sourceDuration().GetCount() / samplesPerFrame(ed); // need fixed.
     if(!constraint.isValid())
     {
         switch (which) {
@@ -313,6 +369,10 @@ QSizeF AbstractGraphicsWidgetResources::sizeHint(Qt::SizeHint which, const QSize
             size = QSizeF(-1, -1);
             break;
         }
+    }
+    else
+    {
+        size = constraint;
     }
     return size;
 }
@@ -358,13 +418,151 @@ Duration AbstractGraphicsWidgetResources::MapToCplTimeline(const Duration &rLoca
 
 void AbstractGraphicsWidgetResources::trimHandleInUse(eTrimHandlePos pos, bool active)
 {
-
+    if(active)
+    {
+        if(pos == Left || pos == Right)
+        {
+            old_entry_point_ = entryPoint();
+            old_source_duration_ = sourceDuration();
+        }
+        maximizeZValue();
+    }
+    else
+    {
+        if(pos == Left)
+        {
+            if(old_entry_point_ != entryPoint())
+            {
+                GraphicsSceneComposition* ptr_scene = qobject_cast<GraphicsSceneComposition*>(scene());
+                if(ptr_scene)
+                {
+                     ptr_scene->delegateCommand(new SetEntryPointCommand(this, old_entry_point_, entryPoint()));
+                }
+            }
+        }
+        else if(pos == Right)
+        {
+            GraphicsSceneComposition* ptr_scene = qobject_cast<GraphicsSceneComposition*>(scene());
+            if(old_source_duration_ != sourceDuration())
+            {
+                ptr_scene->delegateCommand(new SetSourceDurationCommand(this, old_source_duration_, sourceDuration()));
+            }
+        }
+        old_source_duration_ = Duration(-1);
+        old_entry_point_ = Duration(-1);
+        restoreZValue();
+    }
+    duration_indicator_->setVisible(active);
+    vertical_indicator_->setVisible(active);
 }
 
-void AbstractGraphicsWidgetResources::trimResource(qint32 pos, qint32 lastPos, eTrimHandlePos epos)
+void AbstractGraphicsWidgetResources::trimResource(qint32 pos, qint32 lastPos, eTrimHandlePos trimPos)
 {
+    double samples_factor = samplesPerFrame(GetCplEditRate());
+    int rounded_samples_factor = (int) (samples_factor + 0.5);
+    QList<AbstractGraphicsWidgetResources*> resources;
+    QList<AbstractGridExtension*> ignore_list;
+    if(getSequence())
+    {
+        resources = getSequence()->resourceList();
+        for(int i = 0; i < resources.count(); i++)
+            ignore_list.append(resources.at(i));
+    }
+    if(trimPos == Left)
+    {
+        QRectF rect(0,0,0,0);
+        rect.setWidth(qint64(old_source_duration_.GetCount() + old_entry_point_.GetCount()) / samples_factor);
+        qint64 move_left = qint64(old_entry_point_.GetCount() / samples_factor);
+        rect.moveLeft(-move_left);
+        rect = mapRectToScene(rect);
+        QPointF grid_point(rect.right() - (pos - rect.left() - move_left), 0);
+        GraphicsSceneComposition* ptr_scene = qobject_cast<GraphicsSceneComposition*>(scene());
+        GraphicsSceneComposition::GridInfo grid_info;
+        if(ptr_scene)
+        {
+            QRectF search_rect;
+            if(getSequence() && getSequence()->getSegment())
+                search_rect = getSequence()->getSegment()->mapRectToScene(getSequence()->getSegment()->boundingRect());
+            search_rect.setTop(ptr_scene->sceneRect().top());
+            search_rect.setBottom(ptr_scene->sceneRect().bottom());
+            grid_info = ptr_scene->SnapToGrid(grid_point, Vertical, mapRectToScene(search_rect), ignore_list);
+            if(grid_info.IsVerticalSnap)
+            {
+                vertical_indicator_->setHeight(ptr_scene->height());
+                vertical_indicator_->setPos(mapFromScene(QPointF(grid_info.SnapPos.x(), ptr_scene->sceneRect().top())));
+                vertical_indicator_->show();
+            }
+            Duration new_entry_point = ((-grid_info.SnapPos.x() + rect.right() + rect.left()) -
+                                        rect.left() + move_left) * samples_factor;
+            setEntryPoint(new_entry_point);
+        }
+    }
+    else if(trimPos == Right)
+    {
+        QPointF grid_point(pos, 0);
+        GraphicsSceneComposition* ptr_scene = qobject_cast<GraphicsSceneComposition*>(scene());
+        GraphicsSceneComposition::GridInfo grid_info;
+        if(ptr_scene)
+        {
+            QRectF search_rect;
+            if(getSequence() && getSequence()->getSegment())
+                search_rect = getSequence()->getSegment()->mapRectToScene(getSequence()->getSegment()->boundingRect());
+            grid_info = ptr_scene->SnapToGrid(grid_point, Vertical, search_rect, ignore_list);
+            if(grid_info.IsVerticalSnap)
+            {
+                vertical_indicator_->setColor(grid_info.ColorAdvice);
+                vertical_indicator_->setHeight(ptr_scene->height());
+                vertical_indicator_->setPos(mapFromScene(QPointF(grid_info.SnapPos.x(), ptr_scene->sceneRect().top())));
+                vertical_indicator_->show();
+            }
+            else
+            {
+                vertical_indicator_->hide();
+            }
+        }
+        int local_pos = mapFromScene(QPointF(grid_info.SnapPos.x(), 0)).x();
+        qDebug() << "local pos" <<local_pos;
 
+        Duration new_source_duration = ceil(local_pos * samples_factor);
+        setSourceDuration(new_source_duration);
+    }
 }
+
+void AbstractGraphicsWidgetResources::maximizeZValue()
+{
+    setZValue(1);
+    duration_indicator_->setZValue(1);
+    vertical_indicator_->setZValue(1);
+    GraphicsWidgetSequence* sequence = getSequence();
+    if(sequence)
+    {
+        sequence->setZValue(1);
+        GraphicsWidgetSegment* segment = sequence->getSegment();
+        if(segment)
+            segment->setZValue(1);
+    }
+}
+
+void AbstractGraphicsWidgetResources::restoreZValue()
+{
+    setZValue(0);
+    duration_indicator_->setZValue(0);
+    vertical_indicator_->setZValue(0);
+    GraphicsWidgetSequence* sequence = getSequence();
+    if(sequence)
+    {
+        sequence->setZValue(0);
+        GraphicsWidgetSegment* segment = sequence->getSegment();
+        if(segment)
+            segment->setZValue(0);
+    }
+}
+
+GraphicsWidgetSequence* AbstractGraphicsWidgetResources::getSequence() const
+{
+    return qobject_cast<GraphicsWidgetSequence*>(parentObject());
+}
+
 
 GraphicsWidgetFileResource::GraphicsWidgetFileResource(GraphicsWidgetSequence *parent, const QColor& color)
     :AbstractGraphicsWidgetResources(parent, color)
@@ -404,8 +602,8 @@ void GraphicsWidgetVideoResource::paint(QPainter *painter, const QStyleOptionGra
             continue;
 
         // scale proxy images (k)
-        QImage left_proxy_image  = left_proxy_image_.scaledToHeight(boundingRect().height() - 3, Qt::SmoothTransformation);
-        QImage right_proxy_image = right_proxy_image_.scaledToHeight(boundingRect().height() - 3, Qt::SmoothTransformation);
+        QImage left_proxy_image ;// = left_proxy_image_.scaledToHeight(boundingRect().height() - 3, Qt::SmoothTransformation);
+        QImage right_proxy_image;// = right_proxy_image_.scaledToHeight(boundingRect().height() - 3, Qt::SmoothTransformation);
 
         QTransform transf = painter->transform();
 

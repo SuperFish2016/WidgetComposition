@@ -32,6 +32,7 @@ private:
 private:
     Q_DISABLE_COPY(GraphicsWidgetSegment)
     QGraphicsLinearLayout* layout_;
+    Duration duration_ = 1200;
 };
 
 class GraphicsWidgetSegmentIndicator : public GraphicsWidgetBase
@@ -40,6 +41,7 @@ class GraphicsWidgetSegmentIndicator : public GraphicsWidgetBase
 public:
     GraphicsWidgetSegmentIndicator(GraphicsWidgetTimeline* parent){}
     virtual ~GraphicsWidgetSegmentIndicator(){}
+    bool extendGrid(QPointF &rPoint, eGridPosition which) const;
 };
 
 #endif // GRAPHICSWIDGETSEGMENT_H

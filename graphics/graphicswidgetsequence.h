@@ -19,7 +19,7 @@ public:
     AbstractGraphicsWidgetResources* resource(int index) const;
     AbstractGraphicsWidgetResources* resource(const QUuid &rId) const;
     QList<AbstractGraphicsWidgetResources*> resourceList() const;
-
+    GraphicsWidgetSegment* getSegment() const;
     inline QUuid id() const{return id_;}
     inline QUuid trackId() const{return track_id_;}
 

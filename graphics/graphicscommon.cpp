@@ -153,6 +153,17 @@ void GraphicsObjectVerticalIndicator::ViewTransformEvent(const QTransform &trans
     setTransform(QTransform::fromScale(1 / GetViewTransform().m11(), 1));
 }
 
+bool GraphicsObjectVerticalIndicator::extendGrid(QPointF &rPoint, eGridPosition which) const {
+
+    if(which == Vertical) {
+        QPointF ret(mapFromScene(rPoint));
+        ret.setX(0);
+        rPoint = mapToScene(ret);
+        return is_extend_grid_;
+    }
+    return false;
+}
+
 QVariant GraphicsObjectVerticalIndicator::itemChange(GraphicsItemChange change, const QVariant &value)
 {
     if(change == ItemPositionChange) {

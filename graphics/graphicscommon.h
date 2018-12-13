@@ -85,6 +85,14 @@ class AbstractGridExtension
 public:
     AbstractGridExtension(){}
     virtual ~AbstractGridExtension(){}
+public:
+    /*! \brief
+    You have to implement this method by aligning the rPoint to the grid and return true. Otherwise return false
+    "which" specifies the grid. rPoint is given in scene coordinates.
+    */
+    virtual bool extendGrid(QPointF &rPoint, eGridPosition which) const = 0;
+    virtual qreal HeightAdviceForHorizontalGrid() const { return -1; }
+    virtual QColor ColorAdviceForGrid() const { return QColor(CPL_COLOR_DEFAULT_SNAP_INDICATOR); }
 private:
     Q_DISABLE_COPY(AbstractGridExtension)
 };
@@ -96,6 +104,8 @@ public:
     virtual ~GraphicsWidgetBase(){}
     virtual int type() const{return GraphicsWidgetBaseType;}
     EditRate GetCplEditRate() const{return EditRate::EditRate24;}
+    virtual bool extendGrid(QPointF &rPoint, eGridPosition which) const { return false; }
+
 private:
     Q_DISABLE_COPY(GraphicsWidgetBase)
 };
@@ -137,6 +147,7 @@ public:
     virtual void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget);
 
     void setHeadSize(const QSize& size){prepareGeometryChange(); head_size_ = size;}
+    void setColor(const QColor& c){color_ = c;}
     void setHeight(int height) const{line_->setSize(QSize(line_->boundingRect().width(), height));}
     void setLineSize(const QSize& size){line_->setSize(size);}
     void showHead(){setFlag(QGraphicsItem::ItemHasNoContents, false);}
@@ -146,6 +157,8 @@ public:
     void setGridExtention(bool v){is_extend_grid_ = v;}
     QSize headSize() const{return head_size_;}
 protected:
+    virtual bool extendGrid(QPointF &rPoint, eGridPosition which) const;
+    virtual QColor ColorAdviceForGrid() const { return color_; }
     virtual QVariant itemChange(GraphicsItemChange change, const QVariant &value);
     virtual void ViewTransformEvent(const QTransform& trans);
     virtual QGraphicsView* GetObservableView() const{if(scene() && scene()->views().empty() == false)

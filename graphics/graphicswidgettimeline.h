@@ -23,7 +23,7 @@ public:
     virtual int type() const{return GraphicsWidgetTimelineType;}
     bool is_paint_with_frames() const{return is_show_frames_;}
 protected:
-    virtual void resizeEvent(QGraphicsSceneEvent* e);
+    virtual void resizeEvent(QGraphicsSceneResizeEvent* e);
     virtual QSizeF sizeHint(Qt::SizeHint which, const QSizeF &constraint) const;
 private:
     void creatLayout();
